@@ -1,14 +1,19 @@
 import streamlit as st
+import requests
 
 st.title("総務問い合わせ入力")
-st.write("社員から総務への問い合わせを入力してください。")
-
 question = st.text_area("問い合わせ内容", height=160)
 
-if st.button("確認する"):
+if st.button("APIに送信する"):
     if question.strip() == "":
         st.error("問い合わせ内容を入力してください。")
     else:
-        st.success("入力内容を受け付けました。")
-        st.subheader("入力された内容")
-        st.write(question)
+        response = requests.post(
+            "http://127.0.0.1:8001/analyze",
+            json={"question": question},
+            timeout=30
+        )
+        result = response.json()
+        st.write("カテゴリ:", result["category"])
+        st.write("緊急度:", result["priority"])
+        st.write("回答案:", result["answer"])
