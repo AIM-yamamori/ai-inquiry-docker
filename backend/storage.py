@@ -1,29 +1,56 @@
-# JSONファイルを読み書きするためのライブラリ
+# =========================
+# import
+# =========================
+
+
+# JSONファイル操作用
+
 import json
 
 
-# ファイルパスを扱いやすくするライブラリ
+
+# ファイルパス操作用
+
 from pathlib import Path
 
 
-# 保存日時を取得するためのライブラリ
+
+# 日時取得用
+
 from datetime import datetime
 
 
 
 
-# 問い合わせ履歴を保存するJSONファイルの場所
+
+
+
+
+
+# =========================
+# 保存場所設定
+# =========================
+
+
+
+# 保存するJSONファイル
+
 #
-# プロジェクト:
+# プロジェクト構成:
 #
-# data/
-#   └ inquiries.json
+# data
+#  └ inquiries.json
 #
-# に保存する
 
 DATA_PATH = Path(
+
     "data/inquiries.json"
+
 )
+
+
+
+
 
 
 
@@ -37,40 +64,157 @@ DATA_PATH = Path(
 def load_inquiries():
 
 
-    # JSONファイルが存在しない場合
-    #
-    # 初回起動時など
-    #
-    # 空のリストを返す
+    # ファイルが存在しない場合
 
     if not DATA_PATH.exists():
+
 
         return []
 
 
 
-    # JSONファイルを開く
-    #
-    # encoding="utf-8"
-    # 日本語を正しく扱うため
+
+
+
+
+    try:
+
+
+
+        # JSONファイルを開く
+
+        with DATA_PATH.open(
+
+
+            "r",
+
+
+            encoding="utf-8"
+
+
+        ) as f:
+
+
+
+            # ファイル内容を確認
+
+            data = f.read()
+
+
+
+
+
+            # 空ファイルの場合
+
+            if data == "":
+
+
+                return []
+
+
+
+
+
+
+
+            # JSON文字列
+            #
+            # ↓
+            #
+            # Python listへ変換
+
+            return json.loads(data)
+
+
+
+
+
+
+    except json.JSONDecodeError:
+
+
+
+        # JSONが壊れている場合
+
+        print(
+
+            "JSONファイル読み込みエラー"
+
+        )
+
+
+        return []
+
+
+
+
+
+
+
+
+
+
+
+# =========================
+# JSON保存処理
+# =========================
+
+
+def save_json(data):
+
+
+
+    # 保存フォルダ作成
+
+    DATA_PATH.parent.mkdir(
+
+
+        exist_ok=True
+
+    )
+
+
+
+
+
+
+    # JSON書き込み
 
     with DATA_PATH.open(
 
-        "r",
+
+        "w",
+
 
         encoding="utf-8"
+
 
     ) as f:
 
 
 
-        # JSONの内容を読み込み
-        #
-        # JSON
-        # ↓
-        # Pythonのlist/dictへ変換
+        json.dump(
 
-        return json.load(f)
+
+            data,
+
+
+            f,
+
+
+
+            # 日本語保存
+
+            ensure_ascii=False,
+
+
+
+            # 見やすく整形
+
+            indent=2
+
+
+        )
 
 
 
@@ -87,18 +231,24 @@ def load_inquiries():
 
 def save_inquiry(
 
+
     question,
+
 
     category,
 
+
     priority,
 
+
     answer
+
 
 ):
 
 
-    # 既存の問い合わせ一覧を取得
+
+    # 既存履歴取得
 
     inquiries = load_inquiries()
 
@@ -106,71 +256,102 @@ def save_inquiry(
 
 
 
-    # 新しいIDを作成
-    #
-    # 例:
-    #
-    # 既存データ3件
-    # ↓
-    # 新しいID = 4
-
-    new_id = len(inquiries) + 1
 
 
 
+    # =====================
+    # ID作成
+    # =====================
+
+
+    if len(inquiries) == 0:
+
+
+        new_id = 1
 
 
 
-    # 保存する1件分のデータを作成
-    #
-    # Geminiの結果と
-    # ユーザー入力をまとめる
+    else:
+
+
+        # 最大ID + 1
+
+        new_id = max(
+
+
+            item["id"]
+
+            for item in inquiries
+
+
+        ) + 1
+
+
+
+
+
+
+
+
+
+
+    # 保存するデータ作成
 
     inquiry = {
 
 
-        # 問い合わせ番号
+
+        # 問い合わせID
 
         "id": new_id,
 
 
 
-        # 登録日時
-        #
-        # 例:
-        # 2026-06-19 06:46:39
+
+
+        # 作成日時
 
         "created_at":
 
-        datetime.now()
 
-        .strftime(
+            datetime.now()
 
-            "%Y-%m-%d %H:%M:%S"
+            .strftime(
 
-        ),
+                "%Y-%m-%d %H:%M:%S"
+
+            ),
 
 
 
-        # ユーザーが入力した内容
+
+
+
+        # 質問内容
 
         "question": question,
 
 
 
-        # Geminiが判定したカテゴリ
+
+
+        # AI分類結果
 
         "category": category,
 
 
 
-        # Geminiが判定した緊急度
+
+
+        # AI緊急度
 
         "priority": priority,
 
 
 
-        # Geminiが生成した回答
+
+
+        # AI回答
 
         "answer": answer
 
@@ -181,36 +362,18 @@ def save_inquiry(
 
 
 
-    # 作成した問い合わせを
-    # 一覧へ追加
 
-    #
-    # 例:
-    #
-    # [
-    #   問い合わせ1,
-    #   問い合わせ2
-    # ]
+
+
+
+
+    # 一覧へ追加
 
     inquiries.append(
 
+
         inquiry
 
-    )
-
-
-
-
-
-
-    # 保存先フォルダを作成
-    #
-    # dataフォルダがない場合でも
-    # 自動作成する
-
-    DATA_PATH.parent.mkdir(
-
-        exist_ok=True
 
     )
 
@@ -219,49 +382,24 @@ def save_inquiry(
 
 
 
-    # JSONファイルへ保存
-
-    with DATA_PATH.open(
-
-        "w",
-
-        encoding="utf-8"
-
-    ) as f:
 
 
+    # JSON保存
 
-        json.dump(
-
-
-            inquiries,
+    save_json(
 
 
-            f,
+        inquiries
 
 
-            # 日本語をそのまま保存
-
-            ensure_ascii=False,
-
-
-            # 見やすい形式で保存
-
-            indent=2
-
-        )
+    )
 
 
 
 
 
 
-    # 保存した1件分のデータを返す
-    #
-    # main.py側で
-    #
-    # return save_inquiry()
-    #
-    # としてAPIレスポンスに利用する
+
+    # 保存したデータ返却
 
     return inquiry

@@ -1,127 +1,163 @@
-# OSの環境変数を読み込むために使用
+# =========================
+# import
+# =========================
+
+# OSの環境変数を取得するために使用
 import os
 
 
-# Streamlit : 画面を作るライブラリ
-# requests  : FastAPIへHTTP通信するためのライブラリ
+# Streamlit : 画面作成
+# requests  : FastAPIへHTTP通信
+
 import streamlit as st
 import requests
 
 
 
+
+
 # =========================
-# FastAPIのURL設定
+# FastAPI URL設定
 # =========================
 
-# Docker環境では
+
+# Docker環境:
 # http://backend:8000
 #
-# ローカル実行では
+# ローカル:
 # http://127.0.0.1:8000
 #
-# を使用する
-#
-# docker-compose.yml の
+# docker-compose.ymlの
 # BACKEND_URLを取得する
 
 BACKEND_URL = os.getenv(
+
     "BACKEND_URL",
+
     "http://127.0.0.1:8000"
+
 )
 
 
 
-# 画面タイトル表示
-st.title(
-    "総務問い合わせAI"
-)
 
-
-
-# 説明文表示
-st.write(
-    "問い合わせ内容を入力してください。"
-)
 
 
 
 # =========================
-# 問い合わせ入力画面
+# 画面タブ作成
 # =========================
 
 
-# 複数行入力できる入力欄を作成
-question = st.text_area(
-    "問い合わせ内容",
-    height=160
+# 画面を2つに分ける
+#
+# tab1:
+# 問い合わせ入力・AI分析
+#
+# tab2:
+# 過去の問い合わせ履歴
+
+tab1, tab2 = st.tabs(
+
+    [
+
+        "問い合わせ",
+
+        "問い合わせ履歴"
+
+    ]
+
 )
 
 
 
-# ボタンが押された時だけ処理する
-if st.button("分析する"):
-
-
-    # 入力チェック
-    #
-    # 空文字の場合はAIに送信しない
-    if question.strip() == "":
-
-
-        st.error(
-            "問い合わせ内容を入力してください"
-        )
-
-
-        # ここで処理終了
-        st.stop()
 
 
 
-    try:
-
-
-        # FastAPIへ問い合わせ内容を送信
-        #
-        # POST /analyze
-        #
-        # 送信データ:
-        # {
-        #   "question":"入力内容"
-        # }
-
-        response = requests.post(
-
-            f"{BACKEND_URL}/analyze",
-
-            json={
-
-                "question": question
-
-            },
-
-            timeout=60
-
-        )
 
 
 
-        # FastAPI側でエラーが発生した場合
-        #
-        # 例:
-        # 500 Internal Server Error
+# ==================================================
+# タブ1
+# 問い合わせ入力・AI分析
+# ==================================================
 
-        if response.status_code != 200:
+
+with tab1:
+
+
+
+    # タイトル表示
+
+    st.title(
+
+        "総務問い合わせAI"
+
+    )
+
+
+
+    # 説明表示
+
+    st.write(
+
+        "問い合わせ内容を入力してください。"
+
+    )
+
+
+
+
+
+
+
+    # =========================
+    # 問い合わせ入力
+    # =========================
+
+
+    # 複数行入力できるテキスト欄
+
+    question = st.text_area(
+
+        "問い合わせ内容",
+
+        height=160
+
+    )
+
+
+
+
+
+
+
+    # ボタン押下時にAI分析開始
+
+    if st.button(
+
+        "問い合わせる"
+
+    ):
+
+
+
+
+        # =========================
+        # 入力チェック
+        # =========================
+
+
+        # 空文字の場合は処理しない
+
+        if question.strip() == "":
+
 
 
             st.error(
-                "APIエラー"
-            )
 
+                "問い合わせ内容を入力してください"
 
-            # backendから返ってきた内容表示
-            st.write(
-                response.text
             )
 
 
@@ -129,155 +165,315 @@ if st.button("分析する"):
 
 
 
-        # FastAPIから返ってきたJSONをPython辞書へ変換
-        #
-        # 例:
-        #
-        # {
-        #  "category":"給与",
-        #  "priority":"高",
-        #  "answer":"..."
-        # }
-
-        result = response.json()
 
 
 
-        st.success(
-            "分析完了"
-        )
+        try:
 
 
 
-        # =====================
-        # AI結果表示
-        # =====================
+            # =========================
+            # FastAPIへ送信
+            # =========================
 
 
-        st.subheader(
-            "AI回答"
-        )
+            # POST /analyze
+            #
+            # 送信:
+            #
+            # {
+            #   "question":"質問内容"
+            # }
+
+            response = requests.post(
 
 
-
-        st.write(
-            "カテゴリ:",
-            result["category"]
-        )
+                f"{BACKEND_URL}/analyze",
 
 
+                json={
 
-        st.write(
-            "緊急度:",
-            result["priority"]
-        )
+                    "question": question
 
-
-
-        st.write(
-            "回答案:"
-        )
+                },
 
 
-
-        st.write(
-            result["answer"]
-        )
+                timeout=60
 
 
-
-    # ネットワークエラー処理
-    #
-    # backendが起動していない場合など
-
-    except requests.exceptions.RequestException as e:
-
-
-        st.error(
-            "バックエンドに接続できません"
-        )
-
-
-        st.write(e)
-
-
-
-    # JSON変換失敗時
-    #
-    # FastAPIからJSON以外が返った場合
-
-    except ValueError:
-
-
-        st.error(
-            "APIからJSONが返されませんでした"
-        )
+            )
 
 
 
 
 
-# =========================
-# 問い合わせ履歴表示
-# =========================
 
 
-st.subheader(
-    "問い合わせ履歴"
-)
+            # =========================
+            # APIエラー確認
+            # =========================
+
+
+            if response.status_code != 200:
 
 
 
-try:
+                st.error(
+
+                    "APIエラー"
+
+                )
 
 
-    # FastAPIから保存済みデータ取得
-    #
-    # GET /inquiries
+                st.write(
 
-    response = requests.get(
+                    response.text
 
-        f"{BACKEND_URL}/inquiries",
+                )
 
-        timeout=10
+
+                st.stop()
+
+
+
+
+
+
+
+            # =========================
+            # JSON取得
+            # =========================
+
+
+            # FastAPIから返ったJSONを
+            # Python辞書へ変換
+
+            result = response.json()
+
+
+
+
+
+
+
+            st.success(
+
+                "分析完了"
+
+            )
+
+
+
+
+
+
+
+            # =========================
+            # AI結果表示
+            # =========================
+
+
+            st.subheader(
+
+                "AI回答"
+
+            )
+
+
+
+
+
+            # get()を使用することで
+            # キーがない場合でもエラー防止
+
+            st.write(
+
+                "カテゴリ:",
+
+                result.get(
+
+                    "category",
+
+                    "未分類"
+
+                )
+
+            )
+
+
+
+            st.write(
+
+                "緊急度:",
+
+                result.get(
+
+                    "priority",
+
+                    "未設定"
+
+                )
+
+            )
+
+
+
+            st.write(
+
+                "回答案:"
+
+            )
+
+
+
+            st.write(
+
+                result.get(
+
+                    "answer",
+
+                    "回答なし"
+
+                )
+
+            )
+
+
+
+
+
+
+
+
+        # FastAPIへ接続できない場合
+
+        except requests.exceptions.RequestException as e:
+
+
+
+            st.error(
+
+                "バックエンドに接続できません"
+
+            )
+
+
+            st.write(e)
+
+
+
+
+
+
+
+        # JSON変換失敗
+
+        except ValueError:
+
+
+
+            st.error(
+
+                "JSON取得失敗"
+
+            )
+
+
+
+
+
+
+
+
+
+# ==================================================
+# タブ2
+# 問い合わせ履歴
+# ==================================================
+
+
+with tab2:
+
+
+
+    st.subheader(
+
+        "問い合わせ履歴"
 
     )
 
 
 
-    # API取得失敗
-
-    if response.status_code != 200:
 
 
-        st.error(
-            "履歴取得エラー"
+    # 履歴更新ボタン
+
+    if st.button(
+
+        "履歴更新"
+
+    ):
+
+
+        st.rerun()
+
+
+
+
+
+
+    try:
+
+
+
+        # =========================
+        # 履歴取得
+        # =========================
+
+
+        # GET /inquiries
+        #
+        # 保存済み問い合わせ一覧取得
+
+        response = requests.get(
+
+
+            f"{BACKEND_URL}/inquiries",
+
+
+            timeout=10
+
+
         )
 
 
-        st.write(
-            response.text
-        )
 
 
 
-    else:
 
 
-        # JSONをPython形式へ変換
+        # APIエラー
 
-        inquiries = response.json()
+        if response.status_code != 200:
 
 
 
-        # データが存在しない場合
+            st.error(
 
-        if len(inquiries) == 0:
+                "履歴取得エラー"
+
+            )
 
 
             st.write(
-                "履歴はありません"
+
+                response.text
+
             )
+
+
+
+
 
 
 
@@ -285,73 +481,121 @@ try:
 
 
 
-            # 保存されている問い合わせを
-            # 1件ずつ表示
+            # JSONへ変換
 
-            for item in inquiries:
-
-
-
-                # 折りたたみ表示
-                #
-                # クリックすると詳細表示
-
-                with st.expander(
-
-                    f"{item['id']} : {item['question']}"
-
-                ):
+            inquiries = response.json()
 
 
 
-                    st.write(
-
-                        "日時:",
-
-                        item["created_at"]
-
-                    )
 
 
 
-                    st.write(
 
-                        "カテゴリ:",
+            # 履歴がない場合
 
-                        item["category"]
-
-                    )
+            if len(inquiries) == 0:
 
 
 
-                    st.write(
+                st.write(
 
-                        "緊急度:",
+                    "履歴はありません"
 
-                        item["priority"]
-
-                    )
+                )
 
 
 
-                    st.write(
-
-                        "回答:",
-
-                        item["answer"]
-
-                    )
 
 
 
-# 履歴取得時の通信エラー
-
-except requests.exceptions.RequestException as e:
 
 
-    st.error(
-        "履歴取得でバックエンド接続失敗"
-    )
+            else:
 
 
-    st.write(e)
+
+                # =========================
+                # 新しい順で表示
+                # =========================
+
+
+                # reversedで逆順表示
+
+                for item in reversed(inquiries):
+
+
+
+
+
+
+                    # 折りたたみ表示
+
+                    with st.expander(
+
+
+                        f"{item['id']} : {item['question']}"
+
+
+                    ):
+
+
+
+
+                        st.write(
+
+                            "日時:",
+
+                            item["created_at"]
+
+                        )
+
+
+
+                        st.write(
+
+                            "カテゴリ:",
+
+                            item["category"]
+
+                        )
+
+
+
+                        st.write(
+
+                            "緊急度:",
+
+                            item["priority"]
+
+                        )
+
+
+
+                        st.write(
+
+                            "回答:",
+
+                            item["answer"]
+
+                        )
+
+
+
+
+
+
+
+    # 通信エラー
+
+    except requests.exceptions.RequestException as e:
+
+
+
+        st.error(
+
+            "履歴取得でバックエンド接続失敗"
+
+        )
+
+
+        st.write(e)

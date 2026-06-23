@@ -1,22 +1,24 @@
-# JSON形式をPythonの辞書型に変換するためのライブラリ
+# =========================
+# import
+# =========================
+
+
+# JSON文字列をPython辞書へ変換するため
 import json
 
 
-# 環境変数を取得するためのライブラリ
-#
-# .envファイルからAPIキーを読み込むために使用
-
+# 環境変数取得用
 import os
 
 
 
-# .envファイルを読み込むためのライブラリ
+# .env読み込み用
 
 from dotenv import load_dotenv
 
 
 
-# Gemini APIを利用するためのライブラリ
+# Gemini API利用ライブラリ
 
 from google import genai
 
@@ -30,15 +32,14 @@ from google import genai
 
 
 
-# .envファイルの内容を読み込む
+# .envファイルを読み込む
 #
 # 例:
 #
-# GEMINI_API_KEY=xxxxx
+# GEMINI_API_KEY=xxxx
 # GEMINI_MODEL=gemini-2.5-flash-lite
 
 load_dotenv()
-
 
 
 
@@ -51,17 +52,39 @@ load_dotenv()
 
 
 
-# Gemini APIへ接続するための設定
-#
-# APIキーを使って認証する
+# APIキー取得
+
+API_KEY = os.getenv(
+
+    "GEMINI_API_KEY"
+
+)
+
+
+
+
+
+# APIキーが存在しない場合
+
+if not API_KEY:
+
+
+    raise ValueError(
+
+        "GEMINI_API_KEYが設定されていません"
+
+    )
+
+
+
+
+
+
+# Gemini APIへ接続するクライアント作成
 
 client = genai.Client(
 
-    api_key=os.getenv(
-
-        "GEMINI_API_KEY"
-
-    )
+    api_key=API_KEY
 
 )
 
@@ -71,13 +94,7 @@ client = genai.Client(
 
 
 
-# 使用するGeminiモデルを指定
-#
-# .envに設定があればそれを使用
-#
-# なければ
-# gemini-2.5-flash-lite
-# を使用
+# 使用するモデル取得
 
 MODEL = os.getenv(
 
@@ -101,20 +118,6 @@ MODEL = os.getenv(
 
 
 
-# 問い合わせ内容をGeminiへ送り
-# AI分析結果を返す関数
-#
-#
-# 入力:
-#   question
-#
-# 出力:
-# {
-#   "category":"給与",
-#   "priority":"高",
-#   "answer":"..."
-# }
-
 def analyze_with_gemini(
 
     question: str
@@ -122,16 +125,46 @@ def analyze_with_gemini(
 ):
 
 
+    """
+    問い合わせ内容をGeminiで分析する
 
-    # Geminiへ送る指示文を作成
-    #
-    # AIに回答形式を指定することで
-    # 後でJSONとして扱いやすくする
+    入力:
+        question
+        例:
+        "交通費について"
+
+
+    出力:
+
+    {
+        "category":"経費精算",
+        "priority":"中",
+        "answer":"回答内容"
+    }
+
+    """
+
+
+
+
+
+
+
+    # =========================
+    # Geminiへ渡すプロンプト作成
+    # =========================
+
 
     prompt = f"""
 
-以下のJSON形式だけで返してください。
 
+あなたは社内問い合わせ対応AIです。
+
+
+必ずJSON形式だけで返してください。
+
+
+形式:
 
 {{
  "category":"",
@@ -167,7 +200,7 @@ def analyze_with_gemini(
 
 
 
-問い合わせ:
+問い合わせ内容:
 
 {question}
 
@@ -180,110 +213,189 @@ def analyze_with_gemini(
 
 
 
-    # Gemini APIへリクエスト送信
-    #
-    # model:
-    # 使用するAIモデル
-    #
-    # contents:
-    # AIへ渡す質問内容
 
-    response = client.models.generate_content(
-
-
-        model=MODEL,
-
-
-        contents=prompt
-
-
-    )
+    try:
 
 
 
+        # =========================
+        # Gemini API呼び出し
+        # =========================
 
 
+        response = client.models.generate_content(
 
 
-
-    # Geminiから返ってきた文字列を取得
-
-    text = response.text.strip()
+            model=MODEL,
 
 
+            contents=prompt
 
-
-
-
-
-    # =========================
-    # JSON形式の整形
-    # =========================
-
-
-    # Geminiが以下のように返す場合がある
-    #
-    # ```json
-    # {
-    #  ...
-    # }
-    # ```
-    #
-    # このままだとjson.loadsできないため
-    # 記号を削除する
-
-    if text.startswith("```"):
-
-
-
-        # ```json を削除
-
-        text = text.replace(
-
-            "```json",
-
-            ""
 
         )
 
 
 
-        # ``` を削除
 
-        text = text.replace(
 
-            "```",
 
-            ""
+        # Gemini回答取得
+
+        text = response.text.strip()
+
+
+
+
+
+
+        # =========================
+        # JSON整形
+        # =========================
+
+
+        # Geminiが
+
+        #
+        # ```json
+        # {}
+        # ```
+        #
+        # の形式で返した場合
+        # 記号を削除する
+
+
+        if text.startswith("```"):
+
+
+            text = text.replace(
+
+                "```json",
+
+                ""
+
+            )
+
+
+            text = text.replace(
+
+                "```",
+
+                ""
+
+            )
+
+
+            text = text.strip()
+
+
+
+
+
+
+
+        # =========================
+        # JSON → Python辞書
+        # =========================
+
+
+        result = json.loads(text)
+
+
+
+
+
+
+
+
+        # =========================
+        # 必須項目確認
+        # =========================
+
+
+        # キーが存在しない場合の対策
+
+        return {
+
+
+            "category":
+
+                result.get(
+
+                    "category",
+
+                    "その他"
+
+                ),
+
+
+
+            "priority":
+
+                result.get(
+
+                    "priority",
+
+                    "中"
+
+                ),
+
+
+
+            "answer":
+
+                result.get(
+
+                    "answer",
+
+                    "回答を作成できませんでした"
+
+                )
+
+        }
+
+
+
+
+
+
+
+
+    # Gemini APIエラー
+
+    except Exception as e:
+
+
+
+        print(
+
+            "Gemini Error:",
+
+            e
 
         )
 
 
 
-        # 前後の空白削除
+        # FastAPI側で500にしないため
+        # エラー内容をJSONで返す
 
-        text = text.strip()
-
-
-
+        return {
 
 
+            "category":
+
+                "その他",
 
 
-    # JSON文字列をPython辞書へ変換
-    #
-    # 例:
-    #
-    # JSON
-    # {
-    #  "category":"給与"
-    # }
-    #
-    # ↓
-    #
-    # Python
-    # {
-    #  "category":"給与"
-    # }
 
-    return json.loads(text)
+            "priority":
+
+                "低",
+
+
+
+            "answer":
+
+                "AI回答生成中にエラーが発生しました"
+
+        }
